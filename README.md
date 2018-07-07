@@ -10,19 +10,7 @@ psql -h 127.0.0.1 -U postgres -d postgres --password
 
 Kill and Remover: docker kill my-postgres && docker rm my-postgres
 
-## Installation
+## Setup
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `adjust` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:adjust, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/adjust](https://hexdocs.pm/adjust).
+- mix deps.get
+- mix compile

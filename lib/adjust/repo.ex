@@ -45,9 +45,10 @@ defmodule Adjust.Repo do
   end
 
   defp values(_x, 0), do: ""
+
   defp values(x, n) do
-    ["($#{x}, $#{x+1}, $#{x+2})", values(x + 3, n - 1)]
-    |> Enum.filter(&String.length(&1) > 0)
+    ["($#{x}, $#{x + 1}, $#{x + 2})", values(x + 3, n - 1)]
+    |> Enum.filter(&(String.length(&1) > 0))
     |> Enum.join(",")
   end
 end

@@ -1,8 +1,11 @@
 defmodule Adjust do
   require Logger
 
+  # number of entries
   @elements_to_insert 1_000_000
-  @multi_value        10
+
+  # bulk insert
+  @multi_value 10
 
   @doc """
    Initialize the DBs:
@@ -25,15 +28,24 @@ defmodule Adjust do
   Populate source table with n Task
   """
   def fill_source(n \\ 100) do
-    chunker(1, @elements_to_insert, Integer.floor_div(@elements_to_insert, n))
+    chunk_size = Integer.floor_div(@elements_to_insert, n)
+
+    chunker(1, @elements_to_insert, chunk_size)
     |> Enum.map(fn chunk ->
       Task.async(fn ->
         insert_into(chunk)
         :ok
       end)
     end)
-    |> Enum.map(&(Task.await(&1, :infinity)))
+    |> Enum.map(&Task.await(&1, :infinity))
+
     :ok
+  end
+
+  @doc """
+  Copy source table into dest
+  """
+  def copy_to_dest() do
   end
 
   ### PRIVATE ###
@@ -50,46 +62,51 @@ defmodule Adjust do
   end
 
   defp insert_into({start_val, end_val}) do
+    remain_element = rem(end_val - start_val + 1, @multi_value)
+
     with {:ok, conn} <- Adjust.Repo.connect("foo"),
-         {:ok, query_single} <- Adjust.Repo.get_source_query(conn),
-         {:ok, query_multi}  <- Adjust.Repo.get_source_query(conn, @multi_value) do
+         {:ok, query_remain} <- Adjust.Repo.get_source_query(conn, remain_element),
+         {:ok, query_multi} <- Adjust.Repo.get_source_query(conn, @multi_value) do
       start_val..end_val
       |> Enum.chunk_every(@multi_value)
       |> Enum.map(fn xs ->
-        if length(xs) == @multi_value do
-            multi_insert_into(conn, query_multi, xs, :many)
-        else
-            multi_insert_into(conn, query_single, xs, :single)
-        end
+        multi_insert_into(
+          conn,
+          select_query(
+            {query_multi, query_remain},
+            length(xs) == @multi_value
+          ),
+          xs
+        )
+
         :ok
       end)
-      Adjust.Repo.destroy_query(conn, query_single)
+
       Adjust.Repo.destroy_query(conn, query_multi)
+      Adjust.Repo.destroy_query(conn, query_remain)
       Adjust.Repo.close(conn)
     else
-      ex ->
-        IO.inspect ex
+      _ ->
         Logger.error("fill_source: is not possible to populate source")
         :error
     end
   end
 
-  defp multi_insert_into(conn, query, xs, :many) do
+  defp select_query({a, _b}, true), do: a
+  defp select_query({_a, b}, false), do: b
+
+  defp multi_insert_into(conn, query, xs) do
     Adjust.Repo.insert_into_source(conn, query, calc(xs))
   end
 
-  defp multi_insert_into(_conn, _query, [], :single), do: :ok
-  defp multi_insert_into(conn, query, [x | xs], :single) do
-    Adjust.Repo.insert_into_source(conn, query, [x, rem(x, 3), rem(x, 5)])
-    multi_insert_into(conn, query, xs, :single)
-  end
-
   defp chunker(start_value, end_value, _size) when start_value > end_value, do: []
+
   defp chunker(start_value, end_value, size) when start_value < end_value and size > 0 do
     [{start_value, start_value + size - 1} | chunker(start_value + size, end_value, size)]
   end
 
   defp calc([]), do: []
+
   defp calc([x | xs]) do
     [x, rem(x, 3), rem(x, 5)] ++ calc(xs)
   end
