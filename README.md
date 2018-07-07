@@ -1,6 +1,12 @@
 # Adjust
 
-**TODO: Add description**
+## Preparing
+
+Start postgres:
+docker run --name my-postgres -e POSTGRES_PASSWORD=qwerty -d -p 5432:5432 postgres:9.5
+
+Connection:
+psql -h 127.0.0.1 -U postgres -d postgres --password
 
 ## Installation
 
@@ -18,4 +24,3 @@ end
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/adjust](https://hexdocs.pm/adjust).
-
