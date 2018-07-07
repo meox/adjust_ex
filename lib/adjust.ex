@@ -78,10 +78,9 @@ defmodule Adjust do
           ),
           xs
         )
-
-        :ok
       end)
 
+      # destroy statements and close connection
       Adjust.Repo.destroy_query(conn, query_multi)
       Adjust.Repo.destroy_query(conn, query_remain)
       Adjust.Repo.close(conn)
@@ -97,6 +96,7 @@ defmodule Adjust do
 
   defp multi_insert_into(conn, query, xs) do
     Adjust.Repo.insert_into_source(conn, query, calc(xs))
+    :ok
   end
 
   defp chunker(start_value, end_value, _size) when start_value > end_value, do: []
