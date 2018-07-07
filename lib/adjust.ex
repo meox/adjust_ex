@@ -56,10 +56,9 @@ defmodule Adjust do
       start_val..end_val
       |> Enum.chunk_every(@multi_value)
       |> Enum.map(fn xs ->
-        case length(xs) do
-          @multi_value ->
+        if length(xs) == @multi_value do
             multi_insert_into(conn, query_multi, xs, :many)
-          _ ->
+        else
             multi_insert_into(conn, query_single, xs, :single)
         end
         :ok
