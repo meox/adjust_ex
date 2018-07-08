@@ -22,10 +22,10 @@ defmodule Adjust do
   end
 
   @doc """
-  Populate source table with n Task
+  Populate source table (using multiple Tasks)
   """
-  def fill_source(n \\ 100) do
-    chunk_size = Integer.floor_div(@elements_to_insert, n)
+  def fill_source() do
+    chunk_size = Integer.floor_div(@elements_to_insert, 100)
 
     chunker(1, @elements_to_insert, chunk_size)
     |> Enum.map(fn chunk ->
@@ -65,12 +65,12 @@ defmodule Adjust do
   end
 
   defp insert_into({start_val, end_val}) do
-    n_value = find_max_divisor(end_val - start_val + 1)
+    concurrent_insert = 10
 
     with {:ok, conn} <- Adjust.Repo.connect("foo"),
-         {:ok, query} <- Adjust.Repo.get_source_query(conn, n_value) do
+         {:ok, query} <- Adjust.Repo.get_source_query(conn, concurrent_insert) do
       start_val..end_val
-      |> Enum.chunk_every(n_value)
+      |> Enum.chunk_every(concurrent_insert)
       |> Enum.map(fn xs ->
         multi_insert_into(conn, query, xs)
       end)
@@ -83,20 +83,6 @@ defmodule Adjust do
         Logger.error("fill_source: is not possible to populate source")
         :error
     end
-  end
-
-  defp find_max_divisor(n) do
-    find_max_divisor_(2, n, rem(n, 2) == 0, n)
-  end
-
-  defp find_max_divisor_(d, n, _, max_div) when d >= n, do: max_div
-
-  defp find_max_divisor_(d, n, true, _max_div) do
-    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0, d)
-  end
-
-  defp find_max_divisor_(d, n, false, max_div) do
-    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0, max_div)
   end
 
   defp multi_insert_into(conn, query, xs) do
