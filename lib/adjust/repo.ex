@@ -1,6 +1,6 @@
 defmodule Adjust.Repo do
   def connect(database \\ "postgres") do
-    #todo: take it from conf
+    # todo: take it from conf
     Postgrex.start_link(
       hostname: "localhost",
       username: "postgres",

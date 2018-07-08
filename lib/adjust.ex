@@ -48,6 +48,7 @@ defmodule Adjust do
       # use stream
     else
       _ -> Logger.error("is not possible COPY source in dest")
+    end
   end
 
   ### PRIVATE ###
@@ -65,7 +66,8 @@ defmodule Adjust do
 
   defp insert_into({start_val, end_val}) do
     n_value = find_max_divisor(end_val - start_val + 1)
-    with {:ok, conn}  <- Adjust.Repo.connect("foo"),
+
+    with {:ok, conn} <- Adjust.Repo.connect("foo"),
          {:ok, query} <- Adjust.Repo.get_source_query(conn, n_value) do
       start_val..end_val
       |> Enum.chunk_every(n_value)
@@ -84,13 +86,17 @@ defmodule Adjust do
   end
 
   defp find_max_divisor(n) do
-    find_max_divisor_(2, n, rem(n, 2) == 0)
+    find_max_divisor_(2, n, rem(n, 2) == 0, n)
   end
 
-  defp find_max_divisor_(d, n, _) when d >= n, do: n
-  defp find_max_divisor_(d, _n, true), do: d
-  defp find_max_divisor_(d, n, false) do
-    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0)
+  defp find_max_divisor_(d, n, _, max_div) when d >= n, do: max_div
+
+  defp find_max_divisor_(d, n, true, _max_div) do
+    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0, d)
+  end
+
+  defp find_max_divisor_(d, n, false, max_div) do
+    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0, max_div)
   end
 
   defp multi_insert_into(conn, query, xs) do
