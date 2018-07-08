@@ -43,6 +43,11 @@ defmodule Adjust do
   Copy source table into dest
   """
   def copy_to_dest() do
+    with {:ok, conn_foo} <- Adjust.Repo.connect("foo"),
+         {:ok, conn_bar} <- Adjust.Repo.connect("bar") do
+      # use stream
+    else
+      _ -> Logger.error("is not possible COPY source in dest")
   end
 
   ### PRIVATE ###
