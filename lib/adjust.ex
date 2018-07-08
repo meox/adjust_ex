@@ -4,9 +4,6 @@ defmodule Adjust do
   # number of entries
   @elements_to_insert 1_000_000
 
-  # bulk insert
-  @multi_value 10
-
   @doc """
    Initialize the DBs:
      create two tables:
@@ -62,27 +59,17 @@ defmodule Adjust do
   end
 
   defp insert_into({start_val, end_val}) do
-    remain_element = rem(end_val - start_val + 1, @multi_value)
-
-    with {:ok, conn} <- Adjust.Repo.connect("foo"),
-         {:ok, query_remain} <- Adjust.Repo.get_source_query(conn, remain_element),
-         {:ok, query_multi} <- Adjust.Repo.get_source_query(conn, @multi_value) do
+    n_value = find_max_divisor(end_val - start_val + 1)
+    with {:ok, conn}  <- Adjust.Repo.connect("foo"),
+         {:ok, query} <- Adjust.Repo.get_source_query(conn, n_value) do
       start_val..end_val
-      |> Enum.chunk_every(@multi_value)
+      |> Enum.chunk_every(n_value)
       |> Enum.map(fn xs ->
-        multi_insert_into(
-          conn,
-          select_query(
-            {query_multi, query_remain},
-            length(xs) == @multi_value
-          ),
-          xs
-        )
+        multi_insert_into(conn, query, xs)
       end)
 
-      # destroy statements and close connection
-      Adjust.Repo.destroy_query(conn, query_multi)
-      Adjust.Repo.destroy_query(conn, query_remain)
+      # destroy statement and close connection
+      Adjust.Repo.destroy_query(conn, query)
       Adjust.Repo.close(conn)
     else
       _ ->
@@ -91,8 +78,15 @@ defmodule Adjust do
     end
   end
 
-  defp select_query({a, _b}, true), do: a
-  defp select_query({_a, b}, false), do: b
+  defp find_max_divisor(n) do
+    find_max_divisor_(2, n, rem(n, 2) == 0)
+  end
+
+  defp find_max_divisor_(d, n, _) when d >= n, do: n
+  defp find_max_divisor_(d, _n, true), do: d
+  defp find_max_divisor_(d, n, false) do
+    find_max_divisor_(d + 1, n, rem(n, d + 1) == 0)
+  end
 
   defp multi_insert_into(conn, query, xs) do
     Adjust.Repo.insert_into_source(conn, query, calc(xs))
