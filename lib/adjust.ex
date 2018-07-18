@@ -1,6 +1,8 @@
 defmodule Adjust do
   require Logger
 
+  alias Adjust.Repo
+
   # number of entries
   @elements_to_insert 1_000_000
 
@@ -11,9 +13,9 @@ defmodule Adjust do
      - "dest" into :bar DB
   """
   def init() do
-    with {:ok, conn} <- Adjust.Repo.connect(),
-         {:ok, _result} <- Adjust.Repo.create_db(conn, "foo"),
-         {:ok, _result} <- Adjust.Repo.create_db(conn, "bar") do
+    with {:ok, conn} <- Repo.connect(),
+         {:ok, _result} <- Repo.create_db(conn, "foo"),
+         {:ok, _result} <- Repo.create_db(conn, "bar") do
       Logger.info("DBs created")
       create_tables()
     else
@@ -31,7 +33,6 @@ defmodule Adjust do
     |> Enum.map(fn chunk ->
       Task.async(fn ->
         insert_into(chunk)
-        :ok
       end)
     end)
     |> Enum.map(&Task.await(&1, :infinity))
@@ -43,31 +44,19 @@ defmodule Adjust do
   Copy source table into dest
   """
   def copy_to_dest() do
-    with {:ok, conn_foo} <- Adjust.Repo.connect("foo"),
-         {:ok, conn_bar} <- Adjust.Repo.connect("bar") do
-      # use stream
-      Postgrex.transaction(conn_foo, fn(conn_in) ->
-        query = Postgrex.prepare(conn_in, "", "COPY source TO STDOUT")
-        stream_in = Postgrex.stream(conn_in, query, [])
-
-        Postgrex.transaction(conn_bar, fn(conn_out) ->
-          result_to_iodata = fn(%Postgrex.Result{rows: rows}) -> rows end
-          stream_out = Postgrex.stream(conn_out, "COPY dest FROM STDIN", [])
-          Enum.into(stream_in, stream_out, result_to_iodata)
-        end)
-      end)
-    else
-      _ -> Logger.error("is not possible COPY source in dest")
-    end
+    Repo.copy_to_dest(
+      [{:db, "foo"}, {:table, "source"}],
+      [{:db, "bar"}, {:table, "dest"}]
+    )
   end
 
   ### PRIVATE ###
 
   defp create_tables() do
-    with {:ok, conn_foo} <- Adjust.Repo.connect("foo"),
-         {:ok, conn_bar} <- Adjust.Repo.connect("bar"),
-         {:ok, _r} <- Adjust.Repo.create_table(conn_foo, "source"),
-         {:ok, _r} <- Adjust.Repo.create_table(conn_bar, "dest") do
+    with {:ok, conn_foo} <- Repo.connect("foo"),
+         {:ok, conn_bar} <- Repo.connect("bar"),
+         {:ok, _r} <- Repo.create_table(conn_foo, "source"),
+         {:ok, _r} <- Repo.create_table(conn_bar, "dest") do
       Logger.info("table created")
     else
       _ -> Logger.error("is not possibile to create table")
@@ -77,8 +66,8 @@ defmodule Adjust do
   defp insert_into({start_val, end_val}) do
     concurrent_insert = 10
 
-    with {:ok, conn} <- Adjust.Repo.connect("foo"),
-         {:ok, query} <- Adjust.Repo.get_source_query(conn, concurrent_insert) do
+    with {:ok, conn} <- Repo.connect("foo"),
+         {:ok, query} <- Repo.get_source_query(conn, concurrent_insert) do
       start_val..end_val
       |> Enum.chunk_every(concurrent_insert)
       |> Enum.map(fn xs ->
@@ -86,8 +75,9 @@ defmodule Adjust do
       end)
 
       # destroy statement and close connection
-      Adjust.Repo.destroy_query(conn, query)
-      Adjust.Repo.close(conn)
+      Repo.destroy_query(conn, query)
+      Repo.close(conn)
+      :ok
     else
       _ ->
         Logger.error("fill_source: is not possible to populate source")
@@ -96,7 +86,7 @@ defmodule Adjust do
   end
 
   defp multi_insert_into(conn, query, xs) do
-    Adjust.Repo.insert_into_source(conn, query, calc(xs))
+    Repo.insert_into_source(conn, query, calc(xs))
     :ok
   end
 

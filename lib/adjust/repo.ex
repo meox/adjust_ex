@@ -45,6 +45,32 @@ defmodule Adjust.Repo do
     Postgrex.execute(conn, query, params)
   end
 
+  @doc """
+    Copy Table A from DB A to Table B in DB B
+  """
+  def copy_to_dest([{:db, db_a}, {:table, table_a}], [{:db, db_b}, {:table, table_b}]) do
+    with {:ok, conn_foo} <- Adjust.Repo.connect(db_a),
+         {:ok, conn_bar} <- Adjust.Repo.connect(db_b) do
+      # use stream
+      Postgrex.transaction(conn_foo, fn(conn_in) ->
+        {:ok, query} = Postgrex.prepare(conn_in, "", "COPY #{table_a} TO STDOUT")
+        stream_in = Postgrex.stream(conn_in, query, [])
+
+        Postgrex.transaction(conn_bar, fn(conn_out) ->
+          result_to_iodata = fn(%Postgrex.Result{rows: rows}) -> rows end
+          stream_out = Postgrex.stream(conn_out, "COPY #{table_b} FROM STDIN", [])
+          Enum.into(stream_in, stream_out, result_to_iodata)
+        end)
+      end)
+      {:ok, ""}
+    else
+      _ -> {:error, "is not possible COPY source in dest"}
+    end
+  end
+  
+  ### PRIVATE ###
+
+
   defp values(_x, 0), do: ""
 
   defp values(x, n) do
