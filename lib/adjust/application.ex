@@ -10,7 +10,7 @@ defmodule Adjust.Application do
     children = [
       # Starts a worker by calling: Adjust.Worker.start_link(arg)
       # {Adjust.Worker, arg},
-      Plug.Adapters.Cowboy2.child_spec(scheme: :http, plug: Adjust.WebServer, options: [port: 4001])
+      Plug.Adapters.Cowboy2.child_spec(scheme: :http, plug: Adjust.WebServer, options: [port: 4001, compress: true])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
