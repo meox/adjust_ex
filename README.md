@@ -14,3 +14,12 @@ Kill and Remover: docker kill my-postgres && docker rm my-postgres
 
 - mix deps.get
 - mix compile
+
+## Usage
+
+- to initialize the DB: Adjust.init()
+- to fill the DB: Adjust.fill()
+- to copy source to dest: Adjust.copy_to_dest()
+
+The webserver is availabe at port 4001:
+wget http://127.0.0.1:4001//dbs/foo/tables/source
