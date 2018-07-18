@@ -46,6 +46,16 @@ defmodule Adjust do
     with {:ok, conn_foo} <- Adjust.Repo.connect("foo"),
          {:ok, conn_bar} <- Adjust.Repo.connect("bar") do
       # use stream
+      Postgrex.transaction(conn_foo, fn(conn_in) ->
+        query = Postgrex.prepare(conn_in, "", "COPY source TO STDOUT")
+        stream_in = Postgrex.stream(conn_in, query, [])
+
+        Postgrex.transaction(conn_bar, fn(conn_out) ->
+          result_to_iodata = fn(%Postgrex.Result{rows: rows}) -> rows end
+          stream_out = Postgrex.stream(conn_out, "COPY dest FROM STDIN", [])
+          Enum.into(stream_in, stream_out, result_to_iodata)
+        end)
+      end)
     else
       _ -> Logger.error("is not possible COPY source in dest")
     end
